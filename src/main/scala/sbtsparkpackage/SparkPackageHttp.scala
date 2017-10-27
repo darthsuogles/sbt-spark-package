@@ -1,5 +1,7 @@
 package sbtsparkpackage
 
+import scala.sys.process._
+
 import scalaj.http._
 import sbt._
 import Keys._
@@ -15,7 +17,7 @@ object SparkPackageHttp {
 
   private val baseLicenseMap = Array("Apache License 2.0", "BSD 3-Clause License", "BSD 2-Clause License",
     "GNU General Public License 2.0", "GNU General Public License 3.0",
-    "GNU Lesser General Public License 2.1", "GNU Lesser General Public License 3.0", 
+    "GNU Lesser General Public License 2.1", "GNU Lesser General Public License 3.0",
     "MIT License", "Mozilla Public License 2.0", "Eclipse Public License 1.0").zipWithIndex.toMap
 
   private val licenseMap = baseLicenseMap ++ Array("Apache-2.0", "BSD 3-Clause", "BSD 2-Clause", "GPL-2.0",
@@ -30,15 +32,15 @@ object SparkPackageHttp {
     val auth: Array[Byte] = Base64.encodeBase64(s"$user:$pswd".getBytes)
     new String(auth)
   }
-  
+
   private def getHomepage(hpKey: String, name: String): String = {
-    val homepage = 
+    val homepage =
       if (hpKey.trim.length > 0) {
         hpKey
       } else {
         "https://github.com/" + name
       }
-    
+
     // Check if homepage exists
     val connection = Http(homepage).asString
     if (connection.is2xx || connection.is3xx) {
@@ -49,7 +51,7 @@ object SparkPackageHttp {
         s" Are you sure this webpage really exists?")
     }
   }
-  
+
   /** Makes a release package request to the Spark Packages website */
   def makeReleaseCall(dist: TaskKey[File]): Def.Initialize[Task[Unit]] = Def.taskDyn {
     assert(licenses.value.nonEmpty, "Please provide a license with the key licenses in your " +
@@ -67,17 +69,18 @@ object SparkPackageHttp {
       }
     } else {
       Def.task {
-        val git_commit_sha1 = { "git rev-parse HEAD" !!}.trim()
+        val git_commit_sha1 = { "git rev-parse HEAD" !! }.trim()
         val archive = dist.value
         val releaseVersion = packageVersion.value
         var params = Seq("git_commit_sha1" -> git_commit_sha1, "version" -> releaseVersion,
           "license_id" -> licenseId.toString, "name" -> spName.value)
+
+        val mrId = ivyModule.value.moduleDescriptor(streams.value.log).getModuleRevisionId
         if (spIncludeMaven.value) {
-          val mrId = ivyModule.value.moduleDescriptor(streams.value.log).getModuleRevisionId
           params ++= Seq("maven_coordinate" -> s"${mrId.getOrganisation}:${mrId.getName}")
         }
         def url = Seq("https:/", SPARK_PACKAGES_HOST, "api", "submit-release").mkString("/")
-        
+
         val fileBytes = new Array[Byte](archive.length.toInt)
         try {
           var input: InputStream = null
@@ -98,7 +101,7 @@ object SparkPackageHttp {
         val auth = getAuth(credentials.value)
 
         val connection = Http(url).postForm(params)
-          .postMulti(MultiPart("artifact_zip", archive.getName, "application/zip", 
+          .postMulti(MultiPart("artifact_zip", archive.getName, "application/zip",
             new String(Base64.encodeBase64(fileBytes))))
           .header("Authorization", s"Basic $auth")
           .timeout(connTimeoutMs = 2000, readTimeoutMs = 15000)
@@ -123,10 +126,10 @@ object SparkPackageHttp {
       .header("Authorization", s"Basic $auth")
       .timeout(connTimeoutMs = 2000, readTimeoutMs = 15000)
       .asString
-    
+
     printResponse(connection)
   }
-  
+
   def printResponse(connection: HttpResponse[String]): Unit = {
     if (connection.is2xx) {
       println(s"SUCCESS: ${connection.body}")
@@ -142,5 +145,5 @@ object SparkPackageHttp {
       println(s"ERROR: ${connection.code} - $body")
     }
   }
-  
+
 }
