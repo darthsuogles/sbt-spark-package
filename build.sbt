@@ -1,4 +1,4 @@
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.3")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "latest.integration")
 
 sbtPlugin := true
 
@@ -10,7 +10,7 @@ version := "0.2.7-SNAPSHOT"
 
 description := "sbt plugin to develop, use, and publish Spark Packages"
 
-libraryDependencies += "org.scalaj" %% "scalaj-http" % "1.1.4"
+libraryDependencies += "org.scalaj" %% "scalaj-http" % "latest.integration"
 
 libraryDependencies += "org.apache.directory.studio" % "org.apache.commons.codec" % "1.8"
 
